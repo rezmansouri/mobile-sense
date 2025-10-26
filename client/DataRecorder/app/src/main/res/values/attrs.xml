@@ -1,0 +1,5 @@
+<resources>
+    <declare-styleable name="GlassButton">
+        <attr name="buttonNumber" format="integer" />
+    </declare-styleable>
+</resources>
