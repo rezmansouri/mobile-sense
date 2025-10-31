@@ -49,7 +49,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     private int totalSamplesReceived = 0;
 
     // CSV file management
-    private static final long MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB per file
+    private static final long MAX_FILE_SIZE = 10 * 1024 * 1024;
     private static final int MAX_RECORDS_PER_FILE = 5000;
     private int currentRecordCount = 0;
     private File csvFile;
@@ -57,10 +57,6 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     private SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.getDefault());
     private int fileCounter = 1;
     private boolean hasStoragePermission = false;
-
-    // File state management
-    private static final String STATE_FILE = "recording_state.json";
-    private File stateFile;
 
     // Permissions
     private static final int STORAGE_PERMISSION_CODE = 100;
@@ -83,8 +79,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         // Check storage permissions
         checkStoragePermissions();
 
-        // Debug: Log startup
-        Log.d("SensorData", "App started - waiting for sensor data...");
+        Log.d("SensorData", "=== APP STARTED ===");
     }
 
     private void initializeViews() {
@@ -95,13 +90,13 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     private void checkStoragePermissions() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             hasStoragePermission = true;
-            findOrCreateCSVFile();
+            createNewCSVFile();
             updateStatus("Ready - Tap buttons to record data");
         } else {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)
                     == PackageManager.PERMISSION_GRANTED) {
                 hasStoragePermission = true;
-                findOrCreateCSVFile();
+                createNewCSVFile();
                 updateStatus("Ready - Tap buttons to record data");
             } else {
                 ActivityCompat.requestPermissions(this,
@@ -123,12 +118,12 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         if (requestCode == STORAGE_PERMISSION_CODE) {
             if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 hasStoragePermission = true;
-                findOrCreateCSVFile();
+                createNewCSVFile();
                 updateStatus("Ready - Tap buttons to record data");
                 Toast.makeText(this, "Storage permission granted", Toast.LENGTH_SHORT).show();
             } else {
                 hasStoragePermission = false;
-                findOrCreateCSVFile();
+                createNewCSVFile();
                 updateStatus("Ready - Using app storage");
                 Toast.makeText(this, "Using app-specific storage", Toast.LENGTH_LONG).show();
             }
@@ -151,139 +146,110 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
 
             if (sensorManager != null) {
-                // Get all available sensors for debugging
-                List<Sensor> sensors = sensorManager.getSensorList(Sensor.TYPE_ALL);
-                Log.d("SensorData", "=== AVAILABLE SENSORS ===");
-                for (Sensor sensor : sensors) {
-                    Log.d("SensorData", "Sensor: " + sensor.getName() + " | Type: " + sensor.getType() + " | Vendor: " + sensor.getVendor());
-                }
-                Log.d("SensorData", "Total sensors found: " + sensors.size());
+                Log.d("SensorData", "=== SENSOR MANAGER INITIALIZED ===");
 
-                // Try to get our required sensors
+                // Get ALL available sensors for comprehensive logging
+                List<Sensor> allSensors = sensorManager.getSensorList(Sensor.TYPE_ALL);
+                Log.d("SensorData", "=== ALL AVAILABLE SENSORS ON THIS DEVICE ===");
+                Log.d("SensorData", "Total sensors found: " + allSensors.size());
+
+                for (Sensor sensor : allSensors) {
+                    Log.d("SensorData", String.format("Sensor: %-25s | Type: %-30s | Vendor: %-15s | Version: %d | Power: %.1fmA | MaxRange: %.3f",
+                            sensor.getName(),
+                            getSensorTypeName(sensor.getType()),
+                            sensor.getVendor(),
+                            sensor.getVersion(),
+                            sensor.getPower(),
+                            sensor.getMaximumRange()));
+                }
+
+                // Get our specific required sensors
+                Log.d("SensorData", "=== TARGET SENSORS STATUS ===");
+
                 accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
                 gyroscope = sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE);
                 rotationVector = sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR);
 
-                Log.d("SensorData", "=== SENSOR STATUS ===");
-                Log.d("SensorData", "Accelerometer: " + (accelerometer != null ? "FOUND" : "NOT FOUND"));
-                Log.d("SensorData", "Gyroscope: " + (gyroscope != null ? "FOUND" : "NOT FOUND"));
-                Log.d("SensorData", "Rotation Vector: " + (rotationVector != null ? "FOUND" : "NOT FOUND"));
+                logSensorStatus("ACCELEROMETER", accelerometer, Sensor.TYPE_ACCELEROMETER);
+                logSensorStatus("GYROSCOPE", gyroscope, Sensor.TYPE_GYROSCOPE);
+                logSensorStatus("ROTATION VECTOR", rotationVector, Sensor.TYPE_ROTATION_VECTOR);
 
-                // Register listeners with different approaches
+                // Register listeners and verify registration
+                Log.d("SensorData", "=== SENSOR REGISTRATION STATUS ===");
                 boolean anySensorRegistered = false;
 
                 if (accelerometer != null) {
                     boolean registered = sensorManager.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_GAME);
-                    Log.d("SensorData", "Accelerometer registered: " + registered);
+                    Log.d("SensorData", "Accelerometer registration: " + (registered ? "SUCCESS" : "FAILED"));
                     if (registered) anySensorRegistered = true;
                 }
 
                 if (gyroscope != null) {
                     boolean registered = sensorManager.registerListener(this, gyroscope, SensorManager.SENSOR_DELAY_GAME);
-                    Log.d("SensorData", "Gyroscope registered: " + registered);
+                    Log.d("SensorData", "Gyroscope registration: " + (registered ? "SUCCESS" : "FAILED"));
                     if (registered) anySensorRegistered = true;
                 }
 
                 if (rotationVector != null) {
                     boolean registered = sensorManager.registerListener(this, rotationVector, SensorManager.SENSOR_DELAY_GAME);
-                    Log.d("SensorData", "Rotation Vector registered: " + registered);
+                    Log.d("SensorData", "Rotation Vector registration: " + (registered ? "SUCCESS" : "FAILED"));
                     if (registered) anySensorRegistered = true;
                 }
 
-                Log.d("SensorData", "Any sensor registered: " + anySensorRegistered);
+                Log.d("SensorData", "Overall sensor registration: " + (anySensorRegistered ? "SUCCESS" : "FAILED - NO SENSORS WORKING"));
 
                 if (!anySensorRegistered) {
-                    Log.e("SensorData", "NO SENSORS COULD BE REGISTERED!");
+                    Log.e("SensorData", "CRITICAL: NO SENSORS COULD BE REGISTERED!");
                     updateStatus("Error: No sensors available");
 
-                    // Try alternative approach - register for ANY motion sensor
-                    Sensor motionSensor = sensorManager.getDefaultSensor(Sensor.TYPE_ALL);
-                    if (motionSensor != null) {
-                        Log.d("SensorData", "Trying generic sensor registration");
-                        sensorManager.registerListener(this, motionSensor, SensorManager.SENSOR_DELAY_NORMAL);
+                    // Try to register any available motion sensor as fallback
+                    List<Sensor> motionSensors = sensorManager.getSensorList(Sensor.TYPE_ALL);
+                    for (Sensor sensor : motionSensors) {
+                        if (sensor.getName().toLowerCase().contains("accel") ||
+                                sensor.getName().toLowerCase().contains("gyro") ||
+                                sensor.getName().toLowerCase().contains("rotation")) {
+                            Log.d("SensorData", "Trying fallback registration for: " + sensor.getName());
+                            sensorManager.registerListener(this, sensor, SensorManager.SENSOR_DELAY_NORMAL);
+                        }
                     }
                 } else {
                     updateStatus("Sensors initialized - Wait for data...");
+                    Log.d("SensorData", "=== SENSORS READY - WAITING FOR DATA ===");
                 }
 
             } else {
-                Log.e("SensorData", "SensorManager is null!");
+                Log.e("SensorData", "CRITICAL: SensorManager is null - Sensors not available on this device");
                 updateStatus("Error: Sensor service unavailable");
             }
         } catch (Exception e) {
-            Log.e("SensorData", "Exception in setupSensors: " + e.getMessage(), e);
+            Log.e("SensorData", "EXCEPTION in sensor setup: " + e.getMessage(), e);
             updateStatus("Sensor error: " + e.getMessage());
         }
     }
 
-    private void findOrCreateCSVFile() {
-        closeCurrentFile();
+    private void logSensorStatus(String sensorName, Sensor sensor, int sensorType) {
+        if (sensor != null) {
+            Log.d("SensorData", String.format("%-18s: FOUND - %s (Range: ±%.3f, Power: %.1fmA)",
+                    sensorName, sensor.getName(), sensor.getMaximumRange(), sensor.getPower()));
+        } else {
+            Log.e("SensorData", String.format("%-18s: NOT FOUND - This sensor is not available on your device", sensorName));
+        }
+    }
 
-        try {
-            File directory = getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS);
-            if (directory == null) {
-                directory = getFilesDir();
-            }
-
-            if (directory != null) {
-                File sensorDataDir = new File(directory, "SensorData");
-                if (!sensorDataDir.exists()) {
-                    sensorDataDir.mkdirs();
-                }
-
-                // Look for existing CSV files from today
-                File[] existingFiles = sensorDataDir.listFiles((dir, name) ->
-                        name.startsWith("tap_data_") && name.endsWith(".csv")
-                );
-
-                if (existingFiles != null && existingFiles.length > 0) {
-                    // Find the most recent file that's not full
-                    File latestFile = null;
-                    int highestCounter = 0;
-
-                    for (File file : existingFiles) {
-                        String name = file.getName();
-                        // Extract counter from filename: tap_data_2025-10-26_01-30-36_001.csv
-                        if (name.matches("tap_data_\\d{4}-\\d{2}-\\d{2}_\\d{2}-\\d{2}-\\d{2}_(\\d+)\\.csv")) {
-                            String counterStr = name.replaceAll(".*_(\\d+)\\.csv", "$1");
-                            try {
-                                int counter = Integer.parseInt(counterStr);
-                                if (counter > highestCounter) {
-                                    highestCounter = counter;
-                                    latestFile = file;
-                                }
-                            } catch (NumberFormatException e) {
-                                Log.w("SensorData", "Invalid counter in filename: " + name);
-                            }
-                        }
-                    }
-
-                    if (latestFile != null && latestFile.length() < MAX_FILE_SIZE) {
-                        // Use the existing file
-                        csvFile = latestFile;
-                        fileCounter = highestCounter;
-
-                        // Count existing records in the file (approximate - lines minus header)
-                        long fileSize = csvFile.length();
-                        currentRecordCount = (int) (fileSize / 5000); // Rough estimate
-
-                        fileWriter = new FileWriter(csvFile, true); // Append mode
-
-                        Log.d("SensorData", "Resuming existing file: " + csvFile.getName());
-                        Log.d("SensorData", "Estimated records: " + currentRecordCount);
-
-                        updateStatus("Resuming: " + csvFile.getName() + " (~" + currentRecordCount + " records)");
-                        return;
-                    }
-                }
-
-                // No suitable existing file found, create new one
-                createNewCSVFile();
-
-            }
-        } catch (IOException e) {
-            Log.e("SensorData", "Error finding/create CSV file", e);
-            updateStatus("Error accessing files");
+    private String getSensorTypeName(int sensorType) {
+        switch (sensorType) {
+            case Sensor.TYPE_ACCELEROMETER: return "ACCELEROMETER";
+            case Sensor.TYPE_GYROSCOPE: return "GYROSCOPE";
+            case Sensor.TYPE_ROTATION_VECTOR: return "ROTATION_VECTOR";
+            case Sensor.TYPE_MAGNETIC_FIELD: return "MAGNETIC_FIELD";
+            case Sensor.TYPE_LIGHT: return "LIGHT";
+            case Sensor.TYPE_PROXIMITY: return "PROXIMITY";
+            case Sensor.TYPE_GRAVITY: return "GRAVITY";
+            case Sensor.TYPE_LINEAR_ACCELERATION: return "LINEAR_ACCELERATION";
+            case Sensor.TYPE_STEP_COUNTER: return "STEP_COUNTER";
+            case Sensor.TYPE_GAME_ROTATION_VECTOR: return "GAME_ROTATION_VECTOR";
+            case Sensor.TYPE_GEOMAGNETIC_ROTATION_VECTOR: return "GEOMAGNETIC_ROTATION_VECTOR";
+            default: return "UNKNOWN(" + sensorType + ")";
         }
     }
 
@@ -302,79 +268,39 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                     sensorDataDir.mkdirs();
                 }
 
-                // Find the next available file counter
-                fileCounter = findNextFileCounter(sensorDataDir);
-
                 String baseName = "tap_data_" + dateFormat.format(new Date());
                 String fileName = String.format(Locale.getDefault(), "%s_%03d.csv", baseName, fileCounter);
                 csvFile = new File(sensorDataDir, fileName);
                 fileWriter = new FileWriter(csvFile, true);
                 currentRecordCount = 0;
 
-                // Write CSV header only if file is new/empty
-                if (csvFile.length() == 0) {
-                    String header = "digit,timestamp,file_index";
-                    for (int sensor = 0; sensor < 9; sensor++) {
-                        for (int sample = 0; sample < WINDOW_SIZE; sample++) {
-                            header += String.format(",sensor_%d_sample_%d", sensor, sample);
-                        }
+                // Write CSV header
+                String header = "digit,timestamp,file_index";
+                for (int sensor = 0; sensor < 9; sensor++) {
+                    for (int sample = 0; sample < WINDOW_SIZE; sample++) {
+                        header += String.format(",sensor_%d_sample_%d", sensor, sample);
                     }
-                    fileWriter.write(header + "\n");
-                    fileWriter.flush();
-                } else {
-                    // File exists but we're appending - estimate record count
-                    currentRecordCount = (int) (csvFile.length() / 5000); // Rough estimate
                 }
+                fileWriter.write(header + "\n");
+                fileWriter.flush();
 
-                Log.d("SensorData", "Created/opened CSV file: " + csvFile.getAbsolutePath());
+                Log.d("SensorData", "Created new CSV file: " + csvFile.getAbsolutePath());
                 Log.d("SensorData", "File path: " + csvFile.getAbsolutePath());
-                Log.d("SensorData", "Current record count: " + currentRecordCount);
 
-                updateStatus("Recording to: " + fileName + " (" + currentRecordCount + " records)");
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        Toast.makeText(MainActivity.this,
+                                "New file created: " + fileName, Toast.LENGTH_SHORT).show();
+                    }
+                });
+
+                updateStatus("Ready - File: " + fileName);
             }
         } catch (IOException e) {
             Log.e("SensorData", "Error creating CSV file", e);
             updateStatus("Error creating file");
         }
-    }
-
-    private int findNextFileCounter(File directory) {
-        File[] existingFiles = directory.listFiles((dir, name) ->
-                name.startsWith("tap_data_") && name.endsWith(".csv")
-        );
-
-        if (existingFiles == null || existingFiles.length == 0) {
-            return 1; // Start from 1 if no files exist
-        }
-
-        int maxCounter = 0;
-        for (File file : existingFiles) {
-            String name = file.getName();
-            if (name.matches("tap_data_\\d{4}-\\d{2}-\\d{2}_\\d{2}-\\d{2}-\\d{2}_(\\d+)\\.csv")) {
-                String counterStr = name.replaceAll(".*_(\\d+)\\.csv", "$1");
-                try {
-                    int counter = Integer.parseInt(counterStr);
-                    if (counter > maxCounter) {
-                        maxCounter = counter;
-                    }
-                } catch (NumberFormatException e) {
-                    // Ignore files with invalid counters
-                }
-            }
-        }
-
-        // Check if the latest file is full
-        if (maxCounter > 0) {
-            String latestFileName = String.format(Locale.getDefault(), "tap_data_%s_%03d.csv",
-                    dateFormat.format(new Date()).substring(0, 19), maxCounter);
-            File latestFile = new File(directory, latestFileName);
-
-            if (latestFile.exists() && latestFile.length() < MAX_FILE_SIZE) {
-                return maxCounter; // Continue with existing file
-            }
-        }
-
-        return maxCounter + 1; // Create new file with next counter
     }
 
     private void closeCurrentFile() {
@@ -484,7 +410,6 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     }
 
     private float[][] extractSensorWindow() {
-        // We want 81 samples ending at the current buffer position
         int startIndex = (bufferIndex - WINDOW_SIZE + BUFFER_SIZE) % BUFFER_SIZE;
         float[][] window = new float[9][WINDOW_SIZE];
 
@@ -534,7 +459,6 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                             .append(timestamp).append(",")
                             .append(fileCounter);
 
-                    // Add all sensor samples
                     for (int sensor = 0; sensor < 9; sensor++) {
                         for (int sample = 0; sample < WINDOW_SIZE; sample++) {
                             csvLine.append(",").append(sensorData[sensor][sample]);
@@ -542,7 +466,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                     }
 
                     fileWriter.write(csvLine.toString() + "\n");
-                    fileWriter.flush(); // Force write to disk
+                    fileWriter.flush();
 
                     currentRecordCount++;
 
@@ -579,12 +503,14 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     public void onSensorChanged(SensorEvent event) {
         totalSamplesReceived++;
 
-        // Log the first 20 samples to verify data is flowing
-        if (totalSamplesReceived <= 20) {
-            Log.d("SensorData", "Sample #" + totalSamplesReceived +
-                    " - Sensor: " + event.sensor.getName() +
-                    " Type: " + event.sensor.getType() +
-                    " Values: " + event.values[0] + ", " + event.values[1] + ", " + event.values[2]);
+        // Log detailed information about the first 10 samples from each sensor
+        if (totalSamplesReceived <= 10) {
+            Log.d("SensorData", String.format("SAMPLE #%d - Sensor: %-25s | Type: %s | Values: [%.3f, %.3f, %.3f] | Accuracy: %d",
+                    totalSamplesReceived,
+                    event.sensor.getName(),
+                    getSensorTypeName(event.sensor.getType()),
+                    event.values[0], event.values[1], event.values[2],
+                    event.accuracy));
         }
 
         int sensorType = event.sensor.getType();
@@ -598,9 +524,9 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             baseIndex = 6;
         } else {
             // Log other sensor types that we might be receiving
-            if (totalSamplesReceived <= 10) {
-                Log.d("SensorData", "Received data from unexpected sensor: " +
-                        event.sensor.getName() + " Type: " + sensorType);
+            if (totalSamplesReceived <= 5) {
+                Log.d("SensorData", "Received data from additional sensor: " +
+                        event.sensor.getName() + " Type: " + getSensorTypeName(sensorType));
             }
             return;
         }
@@ -616,7 +542,10 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         // Set buffer as filled after we have enough samples
         if (totalSamplesReceived >= WINDOW_SIZE && !isBufferFilled) {
             isBufferFilled = true;
-            Log.d("SensorData", "*** BUFFER NOW FILLED! *** Total samples: " + totalSamplesReceived);
+            Log.d("SensorData", "*** BUFFER NOW FILLED! ***");
+            Log.d("SensorData", "Total samples received: " + totalSamplesReceived);
+            Log.d("SensorData", "Sensors are actively providing data");
+            Log.d("SensorData", "Ready to capture tap events");
 
             runOnUiThread(new Runnable() {
                 @Override
@@ -636,7 +565,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
     @Override
     public void onAccuracyChanged(Sensor sensor, int accuracy) {
-        // Not used, but required by interface
+        Log.d("SensorData", "Accuracy changed for " + sensor.getName() + ": " + accuracy);
     }
 
     private void updatePinDots() {
@@ -668,10 +597,13 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
         if (sensorManager != null) {
             sensorManager.unregisterListener(this);
+            Log.d("SensorData", "Unregistered all sensor listeners");
         }
 
         closeCurrentFile();
 
-        Log.d("SensorData", "App destroyed - Total samples received: " + totalSamplesReceived);
+        Log.d("SensorData", "=== APP DESTROYED ===");
+        Log.d("SensorData", "Final statistics - Total samples received: " + totalSamplesReceived);
+        Log.d("SensorData", "Final statistics - Total records saved: " + currentRecordCount);
     }
 }
