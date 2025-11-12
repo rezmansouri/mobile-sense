@@ -5,6 +5,7 @@ from torch.utils.data import Dataset, DataLoader, random_split
 import pandas as pd
 import numpy as np
 import os
+import sys
 import glob
 from sklearn.preprocessing import MinMaxScaler
 import json
@@ -175,7 +176,7 @@ def validate_epoch(model, dataloader, criterion, device):
 
 def main():
     # Configuration
-    data_folder = "sensor_data"  # Change this to your data folder
+    data_folder = sys.argv[1]
     batch_size = 32
     num_epochs = 30
 
