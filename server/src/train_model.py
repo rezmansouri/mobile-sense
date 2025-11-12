@@ -16,6 +16,7 @@ import matplotlib.pyplot as plt
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")
 
+
 # Dataset class
 class SensorDataset(Dataset):
     def __init__(self, data, labels, scaler=None, fit_scaler=False):
@@ -182,10 +183,14 @@ def main():
 
     # Hyperparameter grid
     hyperparam_grid = [
+        {"conv_filters": 64, "lstm_units": 64, "lr": 0.001, "dropout": 0.0},
         {"conv_filters": 64, "lstm_units": 64, "lr": 0.001, "dropout": 0.3},
+        {"conv_filters": 64, "lstm_units": 128, "lr": 0.001, "dropout": 0.0},
+        {"conv_filters": 64, "lstm_units": 128, "lr": 0.001, "dropout": 0.3},
+        {"conv_filters": 128, "lstm_units": 64, "lr": 0.001, "dropout": 0.0},
         {"conv_filters": 128, "lstm_units": 64, "lr": 0.001, "dropout": 0.3},
-        {"conv_filters": 64, "lstm_units": 128, "lr": 0.001, "dropout": 0.4},
-        {"conv_filters": 96, "lstm_units": 96, "lr": 0.001, "dropout": 0.2},
+        {"conv_filters": 128, "lstm_units": 128, "lr": 0.001, "dropout": 0.0},
+        {"conv_filters": 128, "lstm_units": 128, "lr": 0.001, "dropout": 0.3},
     ]
 
     # Load and split data
