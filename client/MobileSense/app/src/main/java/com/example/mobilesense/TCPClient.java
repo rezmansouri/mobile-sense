@@ -104,4 +104,19 @@ public class TCPClient {
         void onConnected();
         void onError(String error);
     }
+
+    // Add this method to your TCPClient class
+    public void sendMode(String modeMessage) {
+        if (isConnected()) {
+            new Thread(() -> {
+                try {
+                    outputStream.write((modeMessage + "\n").getBytes());
+                    outputStream.flush();
+                    Log.d("TCPClient", "Mode sent: " + modeMessage);
+                } catch (IOException e) {
+                    Log.e("TCPClient", "Error sending mode", e);
+                }
+            }).start();
+        }
+    }
 }

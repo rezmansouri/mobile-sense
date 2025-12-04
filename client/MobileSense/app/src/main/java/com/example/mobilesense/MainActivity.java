@@ -9,7 +9,9 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.util.Log;
 import android.view.View;
+import android.widget.CompoundButton;
 import android.widget.LinearLayout;
+import androidx.appcompat.widget.SwitchCompat;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
@@ -19,7 +21,11 @@ import java.util.List;
 public class MainActivity extends AppCompatActivity implements SensorEventListener, ServerConfigDialog.ServerConfigListener {
     private LinearLayout pinDots;
     private List<Integer> enteredPin = new ArrayList<>();
-    private static final int MAX_PIN_LENGTH = 4;
+    private int MAX_PIN_LENGTH = 4; // Make this variable, not constant
+
+    // Add toggle
+    private SwitchCompat pinLengthToggle;
+    private boolean is4DigitMode = true;
 
     // Sensor related variables
     private SensorManager sensorManager;
@@ -44,22 +50,74 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
+        Log.d("SensorClient", "onCreate started");
+
+        try {
+            setContentView(R.layout.activity_main);
+            Log.d("SensorClient", "setContentView completed");
+        } catch (Exception e) {
+            Log.e("SensorClient", "Error in setContentView", e);
+            throw e;
+        }
 
         initializeViews();
+        Log.d("SensorClient", "initializeViews completed");
+
         createPinDots();
+        Log.d("SensorClient", "createPinDots completed");
+
         setupButtonClicks();
+        Log.d("SensorClient", "setupButtonClicks completed");
+
+        setupToggle();
+        Log.d("SensorClient", "setupToggle completed");
 
         // Start sensors immediately
         setupSensors();
+        Log.d("SensorClient", "setupSensors completed");
 
         // Show server config dialog
         showServerConfigDialog();
+        Log.d("SensorClient", "showServerConfigDialog completed");
     }
 
     private void initializeViews() {
         pinDots = findViewById(R.id.pinDots);
         statusText = findViewById(R.id.statusText);
+        pinLengthToggle = findViewById(R.id.pinLengthToggle);
+    }
+
+    private void setupToggle() {
+        pinLengthToggle.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                is4DigitMode = isChecked;
+                if (is4DigitMode) {
+                    MAX_PIN_LENGTH = 4;
+                    pinLengthToggle.setText("4-digit PIN");
+                } else {
+                    MAX_PIN_LENGTH = 3;
+                    pinLengthToggle.setText("3-digit PIN");
+                }
+
+                // Send mode to server
+                sendModeToServer();
+
+                // Clear current PIN and recreate dots
+                enteredPin.clear();
+                createPinDots();
+
+                updateStatus(is4DigitMode ? "Switched to 4-digit mode" : "Switched to 3-digit mode");
+            }
+        });
+    }
+
+    private void sendModeToServer() {
+        if (tcpClient != null && tcpClient.isConnected()) {
+            String modeMessage = is4DigitMode ? "MODE:4" : "MODE:3";
+            tcpClient.sendMode(modeMessage);
+            Log.d("SensorClient", "Sent mode to server: " + modeMessage);
+        }
     }
 
     private void showServerConfigDialog() {
@@ -83,6 +141,8 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                 runOnUiThread(() -> {
                     updateStatus("Connected to server - Ready for taps");
                     Toast.makeText(MainActivity.this, "Connected to server!", Toast.LENGTH_SHORT).show();
+                    // Send initial mode
+                    sendModeToServer();
                 });
             }
 
@@ -207,7 +267,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         float[][] tapData = extractSensorWindow();
 
         if (tapData != null) {
-            // Send data via TCP (no digit, no timestamp - just raw sensor data)
+            // Send data via TCP
             tcpClient.sendSensorData(tapData);
             Log.d("SensorClient", "Sensor data sent to server");
 
