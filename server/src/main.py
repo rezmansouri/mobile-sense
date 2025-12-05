@@ -33,44 +33,93 @@ PORT = 8080
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
 
-# Model definition (same as training)
-class HybridCNN_LSTM(nn.Module):
-    def __init__(self, conv_filters=64, lstm_units=64, dropout_rate=0.3):
-        super(HybridCNN_LSTM, self).__init__()
+class ConvBlock(nn.Module):
+    """Conv1D block: Conv -> BN -> ReLU"""
 
-        self.conv1 = nn.Conv1d(9, conv_filters, kernel_size=15, padding=7)
-        self.bn1 = nn.BatchNorm1d(conv_filters)
-        self.conv2 = nn.Conv1d(
-            conv_filters, conv_filters // 2, kernel_size=10, padding=5
+    def __init__(self, in_ch, out_ch, kernel_size=5, stride=1, padding=None):
+        super().__init__()
+        if padding is None:
+            padding = kernel_size // 2
+        self.conv = nn.Conv1d(
+            in_ch, out_ch, kernel_size=kernel_size, stride=stride, padding=padding
         )
-        self.bn2 = nn.BatchNorm1d(conv_filters // 2)
-        self.pool = nn.MaxPool1d(2)
-
-        self.lstm = nn.LSTM(
-            conv_filters // 2, lstm_units, batch_first=True, bidirectional=True
-        )
-        self.dropout = nn.Dropout(dropout_rate)
-
-        self.fc1 = nn.Linear(lstm_units * 2, 64)
-        self.fc2 = nn.Linear(64, 10)
-
-        self.relu = nn.ReLU()
+        self.bn = nn.BatchNorm1d(out_ch)
+        self.act = nn.ReLU(inplace=True)
 
     def forward(self, x):
-        x = self.relu(self.bn1(self.conv1(x)))
-        x = self.pool(x)
-        x = self.relu(self.bn2(self.conv2(x)))
-        x = self.pool(x)
+        return self.act(self.bn(self.conv(x)))
 
+
+class ConvBiLSTM(nn.Module):
+    """
+    Encoder: stack of convolutional blocks with stride-downsampling (no MaxPool)
+    BiLSTM: 2-layer bidirectional with dropout, LayerNorm before LSTM
+    Classification head: FC layers with dropout
+    """
+
+    def __init__(
+        self,
+        in_channels=9,
+        conv_channels=128,
+        lstm_hidden=128,
+        dropout=0.3,
+        num_classes=10,
+    ):
+        super().__init__()
+        # conv encoder: (C=9, T=81) -> downsample twice (T/4 ~ 20)
+        self.enc = nn.Sequential(
+            ConvBlock(in_channels, conv_channels // 2, kernel_size=7, stride=1),
+            ConvBlock(
+                conv_channels // 2, conv_channels, kernel_size=5, stride=2
+            ),  # downsample x2
+            ConvBlock(conv_channels, conv_channels, kernel_size=5, stride=1),
+            ConvBlock(
+                conv_channels, conv_channels, kernel_size=3, stride=2
+            ),  # downsample x2 -> total x4
+        )
+        self.dropout = nn.Dropout(dropout)
+
+        # LayerNorm applied over channel dimension (after transpose to [B, T, C])
+        self.layer_norm = nn.LayerNorm(
+            conv_channels
+        )  # will initialize lazily when forward sees shape
+
+        # BiLSTM
+        self.lstm = nn.LSTM(
+            input_size=conv_channels,
+            hidden_size=lstm_hidden,
+            num_layers=2,
+            dropout=0.25,
+            batch_first=True,
+            bidirectional=True,
+        )
+
+        fc_input = lstm_hidden * 2  # bidirectional
+
+        self.head = nn.Sequential(
+            nn.Linear(fc_input, 128),
+            nn.ReLU(inplace=True),
+            nn.Dropout(dropout),
+            nn.Linear(128, 64),
+            nn.ReLU(inplace=True),
+            nn.Dropout(dropout),
+            nn.Linear(64, num_classes),
+        )
+
+    def forward(self, x):
+        # x: [B, C=9, T=81]
+        x = x.float()
+        x = self.enc(x)  # -> [B, C_enc, T_enc]
+        # transpose to [B, T_enc, C_enc] for LSTM
         x = x.transpose(1, 2)
-        lstm_out, _ = self.lstm(x)
-
-        x = torch.mean(lstm_out, dim=1)
-        x = self.dropout(x)
-
-        x = self.relu(self.fc1(x))
-        x = self.fc2(x)
-
+        if self.layer_norm is None:
+            # initialize LayerNorm to normalize over channel dim (C_enc)
+            self.layer_norm = nn.LayerNorm(x.size(-1)).to(x.device)
+        x = self.layer_norm(x)
+        x, _ = self.lstm(x)  # x: [B, T_enc, 2*lstm_hidden]
+        # mean pooling over time
+        x = x.mean(dim=1)
+        x = self.head(x)
         return x
 
 
@@ -81,11 +130,11 @@ class TapPredictor:
 
         # Load model checkpoint
         checkpoint = torch.load(model_path, map_location=self.device)
-        self.config = checkpoint["config"]
+        self.config = checkpoint["hyper"]
 
         # Create model and load weights
         self.model = self._create_model()
-        self.model.load_state_dict(checkpoint["model_state_dict"])
+        self.model.load_state_dict(checkpoint["model_state"])
         self.model.eval()
 
         # Load scaler
@@ -94,10 +143,12 @@ class TapPredictor:
         print("Tap predictor initialized successfully")
 
     def _create_model(self):
-        model = HybridCNN_LSTM(
-            conv_filters=self.config["conv_filters"],
-            lstm_units=self.config["lstm_units"],
-            dropout_rate=self.config["dropout"],
+        model = ConvBiLSTM(
+            in_channels=9,
+            conv_channels=self.config["conv_channels"],
+            lstm_hidden=self.config["lstm_hidden"],
+            dropout=self.config["dropout"],
+            num_classes=10,
         ).to(self.device)
         return model
 

@@ -1,0 +1,52 @@
+Epoch [58/100]  LR=4.475430e-03  Train: 1.5874, 41.0%  Val: 1.6553, 38.6%
+Epoch [59/100]  LR=4.302215e-03  Train: 1.5706, 42.1%  Val: 1.6473, 38.8%
+  ✓ Saved best model (val_loss: 1.6473)
+Epoch [60/100]  LR=4.129851e-03  Train: 1.5697, 41.9%  Val: 1.6556, 39.1%
+Epoch [61/100]  LR=3.958548e-03  Train: 1.5550, 42.2%  Val: 1.6490, 40.0%
+Epoch [62/100]  LR=3.788513e-03  Train: 1.5540, 43.1%  Val: 1.6381, 39.3%
+  ✓ Saved best model (val_loss: 1.6381)
+Epoch [63/100]  LR=3.619954e-03  Train: 1.5346, 43.5%  Val: 1.6411, 39.6%
+Epoch [64/100]  LR=3.453076e-03  Train: 1.5354, 43.2%  Val: 1.6369, 40.1%
+  ✓ Saved best model (val_loss: 1.6369)
+Epoch [65/100]  LR=3.288083e-03  Train: 1.5290, 43.6%  Val: 1.6430, 39.8%
+Epoch [66/100]  LR=3.125176e-03  Train: 1.5066, 44.5%  Val: 1.6450, 39.6%
+Epoch [67/100]  LR=2.964554e-03  Train: 1.4904, 45.1%  Val: 1.6261, 40.4%
+  ✓ Saved best model (val_loss: 1.6261)
+Epoch [68/100]  LR=2.806411e-03  Train: 1.4772, 45.5%  Val: 1.6395, 39.5%
+Epoch [69/100]  LR=2.650940e-03  Train: 1.4829, 45.1%  Val: 1.6243, 40.8%
+  ✓ Saved best model (val_loss: 1.6243)
+Epoch [70/100]  LR=2.498332e-03  Train: 1.4562, 46.0%  Val: 1.6200, 41.2%
+  ✓ Saved best model (val_loss: 1.6200)
+Epoch [71/100]  LR=2.348771e-03  Train: 1.4366, 46.9%  Val: 1.6178, 41.9%
+  ✓ Saved best model (val_loss: 1.6178)
+Epoch [72/100]  LR=2.202441e-03  Train: 1.4359, 46.3%  Val: 1.6356, 41.5%
+Epoch [73/100]  LR=2.059519e-03  Train: 1.4219, 47.5%  Val: 1.6404, 41.6%
+Epoch [74/100]  LR=1.920180e-03  Train: 1.4233, 47.7%  Val: 1.6196, 41.7%
+Epoch [75/100]  LR=1.784593e-03  Train: 1.4103, 48.0%  Val: 1.6178, 42.5%
+Epoch [76/100]  LR=1.652923e-03  Train: 1.4182, 47.7%  Val: 1.6326, 42.3%
+Epoch [77/100]  LR=1.525332e-03  Train: 1.3822, 48.9%  Val: 1.6216, 43.8%
+Epoch [78/100]  LR=1.401973e-03  Train: 1.3776, 49.3%  Val: 1.6232, 43.2%
+Epoch [79/100]  LR=1.282999e-03  Train: 1.3748, 48.6%  Val: 1.6187, 43.2%
+Epoch [80/100]  LR=1.168553e-03  Train: 1.3686, 49.3%  Val: 1.6168, 42.9%
+  ✓ Saved best model (val_loss: 1.6168)
+Epoch [81/100]  LR=1.058775e-03  Train: 1.3725, 49.4%  Val: 1.6226, 43.3%
+Epoch [82/100]  LR=9.537989e-04  Train: 1.3500, 50.0%  Val: 1.6456, 42.5%
+Epoch [83/100]  LR=8.537524e-04  Train: 1.3544, 50.0%  Val: 1.6366, 42.3%
+Epoch [84/100]  LR=7.587576e-04  Train: 1.3429, 50.0%  Val: 1.6393, 42.8%
+Epoch [85/100]  LR=6.689301e-04  Train: 1.3282, 50.6%  Val: 1.6375, 43.4%
+Epoch [86/100]  LR=5.843794e-04  Train: 1.3186, 51.4%  Val: 1.6523, 43.8%
+Epoch [87/100]  LR=5.052084e-04  Train: 1.3261, 50.9%  Val: 1.6447, 43.1%
+Epoch [88/100]  LR=4.315137e-04  Train: 1.3291, 50.7%  Val: 1.6455, 42.6%
+Epoch [89/100]  LR=3.633850e-04  Train: 1.3158, 51.0%  Val: 1.6453, 42.6%
+Epoch [90/100]  LR=3.009053e-04  Train: 1.3127, 51.3%  Val: 1.6491, 42.6%
+Epoch [91/100]  LR=2.441508e-04  Train: 1.3148, 51.7%  Val: 1.6490, 43.1%
+Epoch [92/100]  LR=1.931906e-04  Train: 1.3218, 51.4%  Val: 1.6488, 42.9%
+Epoch [93/100]  LR=1.480867e-04  Train: 1.3084, 52.0%  Val: 1.6424, 43.2%
+Epoch [94/100]  LR=1.088942e-04  Train: 1.3084, 51.7%  Val: 1.6461, 42.7%
+Epoch [95/100]  LR=7.566078e-05  Train: 1.2892, 51.6%  Val: 1.6448, 43.1%
+Early stopping at epoch 95 (patience 15 reached)
+Training complete.
+Best epoch: 80  Best val loss: 1.6168  Best val acc: 42.89%
+Saved training_history.json
+Saved training_results.pdf
+Done. Best model: best_model.pth, scaler: sensor_scaler.pkl, history: training_history.json  
